@@ -1,18 +1,21 @@
-# Kiswendsida & Frères — maquette v2
+# Kiswendsida & Frères — site corporate
 
-Seconde maquette du site de **Kiswendsida & Frères** : achat, vente, collecte,
-tri, recyclage, récupération, transformation, valorisation, commerce et
-importation de ferrailles. 265, Boulevard Zerktouni, 9ᵉ étage, appartement n°92,
-Anfa — Casablanca.
+Site de **Kiswendsida & Frères** : collecte, rachat, tri, valorisation et négoce
+de ferrailles et de métaux au Maroc. 265, Boulevard Zerktouni, 9ᵉ étage,
+appartement n°92, Anfa — Casablanca.
 
 En ligne : <https://kobedy.github.io/kiswendsida-freres-v2/>
 
-Première maquette : <https://kobedy.github.io/kiswendsida-freres/>
+Site statique de 23 pages (accueil, Le Groupe, services, négoce & export,
+matériaux, conformité, blog, contact, pages légales) construit sur la maquette v2.
 
-Une seule page, sans dépendance ni étape de construction : `index.html` et
-`assets/`. Le numéro WhatsApp et les coordonnées sont encore des valeurs
-d'exemple, à remplacer par celles du gérant.
+**Ne pas modifier ces fichiers à la main** : ils sont générés depuis le dépôt
+privé `kiswendsida-freres-marque` (`python tools/build_site_corporate.py`),
+puis copiés ici. La maquette v2 d'origine (une seule page) reste dans
+l'historique de ce dépôt et dans le dossier `site-v2/` du dépôt privé.
+
+Les champs `[__]` (téléphone, ICE, RC…) attendent les informations du client.
 
 ---
 
-Reproduction et mise en ligne : **Kobedy Web**.
+Conception, rédaction et réalisation : **Kobedy Web**.
