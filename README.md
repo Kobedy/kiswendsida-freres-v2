@@ -6,7 +6,7 @@ appartement n°92, Anfa — Casablanca.
 
 En ligne : <https://kobedy.github.io/kiswendsida-freres-v2/>
 
-Site statique de 23 pages (accueil, Le Groupe, services, négoce & export,
+Site statique de 21 pages (accueil, Le Groupe, 2 services, négoce & export,
 matériaux, conformité, blog, contact, pages légales) construit sur la maquette v2.
 
 **Ne pas modifier ces fichiers à la main** : ils sont générés depuis le dépôt
