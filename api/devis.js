@@ -6,20 +6,21 @@
  *   SMTP_HOST, SMTP_PORT, SMTP_USER, DEVIS_TO   facultatifs, valeurs par défaut ci-dessous
  */
 import nodemailer from 'nodemailer';
+import { courriel } from './_courriel.js';
 
 const BOITE = 'contact@kiswendsida-freres.com';
 
-// nom du champ, libellé dans l'e-mail, longueur maximale, obligatoire
+// nom du champ, longueur maximale, obligatoire
 const CHAMPS = [
-  ['nom', 'Nom complet', 120, true],
-  ['societe', 'Société', 160, true],
-  ['email', 'Email', 160, true],
-  ['tel', 'Téléphone', 40, true],
-  ['zone', 'Région / Zone', 200, true],
-  ['matiere', 'Type de matière', 80, true],
-  ['tonnage', 'Tonnage estimé', 80, true],
-  ['bsd', 'Besoin d\'un BSD', 5, false],
-  ['message', 'Demande', 4000, true],
+  ['nom', 120, true],
+  ['societe', 160, true],
+  ['email', 160, true],
+  ['tel', 40, true],
+  ['zone', 200, true],
+  ['matiere', 80, true],
+  ['tonnage', 80, true],
+  ['bsd', 5, false],
+  ['message', 4000, true],
 ];
 
 // frein simple par adresse IP (par instance) : 5 envois par tranche de 10 minutes
@@ -35,7 +36,6 @@ function tropDEnvois(ip) {
 
 const uneLigne = (s) => s.replace(/[\x00-\x1f\x7f\s]+/g, ' ').trim();   // \s couvre aussi les fins de ligne Unicode
 const texte = (s) => s.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim();
-const echap = (s) => s.replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';');
 
 function memeOrigine(req) {
   try {
@@ -60,8 +60,8 @@ export default async function handler(req, res) {
   if (corps.site_web) return rep(200);
 
   const v = {};
-  for (const [cle, , max, requis] of CHAMPS) {
-    const brut = typeof corps[cle] === 'string' ? corps[cle].slice(0, max) : '';
+  for (const [cle, max, requis] of CHAMPS) {
+    const brut = typeof corps[cle] === 'string' ? corps[cle].slice(0, max).toWellFormed() : '';
     v[cle] = cle === 'message' ? texte(brut) : uneLigne(brut);
     if (requis && !v[cle]) return rep(422, 'champ_' + cle);
   }
@@ -74,7 +74,6 @@ export default async function handler(req, res) {
 
   const port = Number(process.env.SMTP_PORT || 465);
   const compte = process.env.SMTP_USER || BOITE;
-  const lignes = CHAMPS.filter(([cle]) => v[cle]).map(([cle, libelle]) => [libelle, v[cle]]);
 
   try {
     await nodemailer.createTransport({
@@ -86,12 +85,8 @@ export default async function handler(req, res) {
       from: { name: 'Site Kiswendsida & Frères', address: compte },
       to: process.env.DEVIS_TO || BOITE,
       replyTo: { name: v.nom, address: v.email },   // « Répondre » écrit au demandeur
-      subject: `Demande de devis — ${v.societe} — ${v.matiere} (${v.zone})`.slice(0, 180),
-      text: lignes.map(([l, t]) => `${l} : ${t}`).join('\n') + '\n\n— Formulaire de kiswendsida-freres.com',
-      html: '<table cellpadding="8" style="border-collapse:collapse;font:15px/1.5 Arial,sans-serif;color:#111D29">'
-        + lignes.map(([l, t]) => `<tr><td style="border-bottom:1px solid #BDCAD3;vertical-align:top;white-space:nowrap">`
-          + `<strong>${echap(l)}</strong></td><td style="border-bottom:1px solid #BDCAD3">${echap(t).replace(/\n/g, '<br>')}</td></tr>`).join('')
-        + '</table><p style="font:13px Arial,sans-serif;color:#667">Formulaire de kiswendsida-freres.com</p>',
+      subject: `Demande de devis — ${v.societe} — ${v.matiere} (${v.zone})`.slice(0, 180).toWellFormed(),
+      ...courriel(v),
     });
     return rep(200);
   } catch (e) {
