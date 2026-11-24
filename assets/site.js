@@ -147,6 +147,44 @@
     });
   });
 
+  /* --- popups : demande de devis et choix WhatsApp ------------------ */
+  /* sans JavaScript (ou sans <dialog>), les liens gardent leur destination normale */
+  var popDevis = document.getElementById('popup-devis');
+  var popWa = document.getElementById('popup-wa');
+  var waBase = popWa && popWa.querySelector('.kf-option') ? popWa.querySelector('.kf-option').href.split('?')[0] : '';
+  function ouvrir(d) {
+    if (!d || !d.showModal) return false;
+    if (d.open) return true;
+    [].forEach.call(d.querySelectorAll('.kf-etat--ok'), function (e) { e.hidden = true; });
+    d.showModal();
+    doc.classList.add('kf-fige');
+    var corps = d.querySelector('.kf-popup__corps'); if (corps) corps.scrollTop = 0;
+    setMenu(false);
+    return true;
+  }
+  function versWa(a) { return !!waBase && a.href.split('?')[0] === waBase; }
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || !e.target.closest) return;
+    var a = e.target.closest('a');
+    if (!a) return;
+    var dans = a.closest('.kf-popup');
+    if (dans) { if (a.classList.contains('kf-option')) dans.close(); return; }
+    if ((a.hasAttribute('data-devis') && ouvrir(popDevis)) || (versWa(a) && ouvrir(popWa))) e.preventDefault();
+  });
+  [].forEach.call(document.querySelectorAll('.kf-popup'), function (d) {
+    var dehors = false;
+    d.addEventListener('pointerdown', function (e) { dehors = e.target === d; });
+    d.addEventListener('click', function (e) {
+      if ((e.target === d && dehors) || (e.target.closest && e.target.closest('[data-fermer]'))) d.close();
+    });
+    d.addEventListener('close', function () { doc.classList.remove('kf-fige'); });
+  });
+  if (popDevis && popDevis.showModal) {
+    [].forEach.call(document.querySelectorAll('a[data-devis], a[href^="https://wa.me/"]'), function (a) {
+      if (!a.closest('.kf-popup') && (a.hasAttribute('data-devis') || versWa(a))) a.setAttribute('aria-haspopup', 'dialog');
+    });
+  }
+
   /* --- formulaire de devis : envoi par e-mail ou par WhatsApp ------ */
   var region = document.querySelector('.kf-toasts');
   function toast(titre, texte) {
@@ -187,11 +225,13 @@
   }
   [].forEach.call(document.querySelectorAll('form[data-wa]'), function (form) {
     var etat = form.querySelector('.kf-etat');
+    var enPopup = !!form.closest('dialog');   /* un toast passerait derrière le popup */
     var boutons = form.querySelectorAll('button[type="submit"]');
     function dire(genre, message) {
       etat.className = 'kf-etat text-sm' + (genre ? ' kf-etat--' + genre : '');
       etat.textContent = message;
       etat.hidden = !message;
+      if (message && enPopup) etat.scrollIntoView({ block: 'nearest' });
     }
     function occupe(oui) {
       [].forEach.call(boutons, function (b) { b.disabled = oui; });
@@ -199,6 +239,7 @@
     }
     function parWhatsApp(d) {
       window.open('https://wa.me/' + form.getAttribute('data-wa') + '?text=' + encodeURIComponent(d.whatsapp), '_blank', 'noopener');
+      if (enPopup) { dire('ok', 'WhatsApp s\'ouvre avec votre demande : il ne reste qu\'à l\'envoyer. Réponse sous 24 h.'); return; }
       dire('', '');
       toast('Demande prête !', 'WhatsApp s\'ouvre avec votre message : il ne reste qu\'à l\'envoyer. Réponse sous 24 h.');
     }
@@ -224,7 +265,7 @@
         if (x.code === 200 && x.j.ok) {
           form.reset();
           dire('ok', 'Demande envoyée ! Notre équipe vous répond sous 24 h.');
-          toast('Demande envoyée !', 'Notre équipe vous recontacte sous 24 h avec une proposition.');
+          if (!enPopup) toast('Demande envoyée !', 'Notre équipe vous recontacte sous 24 h avec une proposition.');
         } else if (x.code === 422 && x.j.erreur === 'champ_email') {
           dire('err', 'L\'adresse e-mail semble incorrecte : vérifiez-la puis renvoyez votre demande.');
           form.elements.email.focus();
