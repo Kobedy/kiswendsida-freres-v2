@@ -1,0 +1,102 @@
+/* Demande de devis : reçoit le formulaire du site et l'envoie dans la boîte e-mail de
+ * l'entreprise. Rien n'est enregistré : le message part par le SMTP de la boîte elle-même.
+ *
+ * Réglages (variables d'environnement Vercel) :
+ *   SMTP_PASS   mot de passe de la boîte — le seul réglage obligatoire (secret)
+ *   SMTP_HOST, SMTP_PORT, SMTP_USER, DEVIS_TO   facultatifs, valeurs par défaut ci-dessous
+ */
+import nodemailer from 'nodemailer';
+
+const BOITE = 'contact@kiswendsida-freres.com';
+
+// nom du champ, libellé dans l'e-mail, longueur maximale, obligatoire
+const CHAMPS = [
+  ['nom', 'Nom complet', 120, true],
+  ['societe', 'Société', 160, true],
+  ['email', 'Email', 160, true],
+  ['tel', 'Téléphone', 40, true],
+  ['zone', 'Région / Zone', 200, true],
+  ['matiere', 'Type de matière', 80, true],
+  ['tonnage', 'Tonnage estimé', 80, true],
+  ['bsd', 'Besoin d\'un BSD', 5, false],
+  ['message', 'Demande', 4000, true],
+];
+
+// frein simple par adresse IP (par instance) : 5 envois par tranche de 10 minutes
+const FENETRE = 10 * 60 * 1000, MAX = 5, envois = new Map();
+function tropDEnvois(ip) {
+  const t = Date.now();
+  if (envois.size > 2000) envois.clear();
+  const recents = (envois.get(ip) || []).filter((x) => t - x < FENETRE);
+  recents.push(t);
+  envois.set(ip, recents);
+  return recents.length > MAX;
+}
+
+const uneLigne = (s) => s.replace(/[\x00-\x1f\x7f\s]+/g, ' ').trim();   // \s couvre aussi les fins de ligne Unicode
+const texte = (s) => s.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim();
+const echap = (s) => s.replace(/[&<>"']/g, (c) => '&#' + c.charCodeAt(0) + ';');
+
+function memeOrigine(req) {
+  try {
+    const hote = req.headers['x-forwarded-host'] || req.headers.host;
+    return new URL(req.headers.origin).host === hote;
+  } catch { return false; }
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  const rep = (code, erreur) => res.status(code).json(erreur ? { ok: false, erreur } : { ok: true });
+
+  if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return rep(405, 'methode'); }
+  if (!memeOrigine(req)) return rep(403, 'origine');
+  if (!/^application\/json\b/i.test(req.headers['content-type'] || '')) return rep(415, 'format');
+
+  let corps;
+  try { corps = req.body; } catch { return rep(400, 'json'); }
+  if (!corps || typeof corps !== 'object' || Array.isArray(corps)) return rep(400, 'json');
+
+  // champ piège, invisible à l'écran : un humain ne le remplit jamais
+  if (corps.site_web) return rep(200);
+
+  const v = {};
+  for (const [cle, , max, requis] of CHAMPS) {
+    const brut = typeof corps[cle] === 'string' ? corps[cle].slice(0, max) : '';
+    v[cle] = cle === 'message' ? texte(brut) : uneLigne(brut);
+    if (requis && !v[cle]) return rep(422, 'champ_' + cle);
+  }
+  if (!/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(v.email)) return rep(422, 'champ_email');
+
+  if (!process.env.SMTP_PASS) return rep(503, 'non_configure');
+
+  const ip = String(req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || '?').split(',')[0].trim();
+  if (tropDEnvois(ip)) return rep(429, 'trop_d_envois');
+
+  const port = Number(process.env.SMTP_PORT || 465);
+  const compte = process.env.SMTP_USER || BOITE;
+  const lignes = CHAMPS.filter(([cle]) => v[cle]).map(([cle, libelle]) => [libelle, v[cle]]);
+
+  try {
+    await nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'mail.kiswendsida-freres.com',
+      port, secure: port === 465, requireTLS: port !== 465,
+      auth: { user: compte, pass: process.env.SMTP_PASS },
+      connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 12000,
+    }).sendMail({
+      from: { name: 'Site Kiswendsida & Frères', address: compte },
+      to: process.env.DEVIS_TO || BOITE,
+      replyTo: { name: v.nom, address: v.email },   // « Répondre » écrit au demandeur
+      subject: `Demande de devis — ${v.societe} — ${v.matiere} (${v.zone})`.slice(0, 180),
+      text: lignes.map(([l, t]) => `${l} : ${t}`).join('\n') + '\n\n— Formulaire de kiswendsida-freres.com',
+      html: '<table cellpadding="8" style="border-collapse:collapse;font:15px/1.5 Arial,sans-serif;color:#111D29">'
+        + lignes.map(([l, t]) => `<tr><td style="border-bottom:1px solid #BDCAD3;vertical-align:top;white-space:nowrap">`
+          + `<strong>${echap(l)}</strong></td><td style="border-bottom:1px solid #BDCAD3">${echap(t).replace(/\n/g, '<br>')}</td></tr>`).join('')
+        + '</table><p style="font:13px Arial,sans-serif;color:#667">Formulaire de kiswendsida-freres.com</p>',
+    });
+    return rep(200);
+  } catch (e) {
+    // jamais de données du demandeur dans les journaux
+    console.error('devis: envoi impossible', e && e.code, e && e.responseCode);
+    return rep(502, 'envoi');
+  }
+}

@@ -147,7 +147,7 @@
     });
   });
 
-  /* --- formulaire de devis : envoi par WhatsApp ------------------ */
+  /* --- formulaire de devis : envoi par e-mail ou par WhatsApp ------ */
   var region = document.querySelector('.kf-toasts');
   function toast(titre, texte) {
     if (!region) return;
@@ -159,21 +159,72 @@
     region.appendChild(d);
     setTimeout(function () { d.remove(); }, 6000);
   }
+  function valeurs(form) {
+    var champs = {}, lines = [];
+    [].forEach.call(form.elements, function (el) {
+      if (!el.name || el.type === 'submit') return;
+      var v = el.type === 'checkbox' ? (el.checked ? 'oui' : 'non')
+            : el.tagName === 'SELECT' ? (el.selectedIndex > 0 ? el.options[el.selectedIndex].text : '') : el.value.trim();
+      champs[el.name] = v;
+      if (v && el.name !== 'site_web') lines.push('• ' + (el.getAttribute('data-label') || el.name) + ' : ' + v);
+    });
+    return { champs: champs, texte: 'Bonjour Kiswendsida & Frères, voici ma demande :\n' + lines.join('\n') };
+  }
   [].forEach.call(document.querySelectorAll('form[data-wa]'), function (form) {
+    var etat = form.querySelector('.kf-etat');
+    var boutons = form.querySelectorAll('button[type="submit"]');
+    function dire(genre, message) {
+      etat.className = 'kf-etat text-sm' + (genre ? ' kf-etat--' + genre : '');
+      etat.textContent = message;
+      etat.hidden = !message;
+    }
+    function occupe(oui) {
+      [].forEach.call(boutons, function (b) { b.disabled = oui; });
+      form.setAttribute('aria-busy', oui ? 'true' : 'false');
+    }
+    function parWhatsApp(d) {
+      window.open('https://wa.me/' + form.getAttribute('data-wa') + '?text=' + encodeURIComponent(d.texte), '_blank', 'noopener');
+      dire('', '');
+      toast('Demande prête !', 'WhatsApp s\'ouvre avec votre message : il ne reste qu\'à l\'envoyer. Réponse sous 24 h.');
+    }
+    /* envoi direct impossible : la messagerie du visiteur s'ouvre, rien n'est perdu */
+    function parMessagerie(d) {
+      var mail = form.getAttribute('data-mail');
+      dire('info', 'L\'envoi direct n\'est pas disponible pour le moment : votre messagerie s\'ouvre avec votre demande, il ne reste '
+        + 'qu\'à l\'envoyer. Si rien ne s\'ouvre, écrivez à ' + mail + ' ou utilisez le bouton WhatsApp.');
+      window.location.href = 'mailto:' + mail + '?subject=' + encodeURIComponent('Demande de devis — ' + d.champs.societe)
+        + '&body=' + encodeURIComponent(d.texte.replace(/\n/g, '\r\n'));
+    }
+    function parEmail(d) {
+      occupe(true);
+      dire('info', 'Envoi en cours…');
+      var ctl = window.AbortController ? new AbortController() : null;
+      var minuterie = setTimeout(function () { if (ctl) ctl.abort(); }, 30000);
+      fetch(form.getAttribute('data-api'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d.champs),
+        signal: ctl ? ctl.signal : undefined
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) { return { code: r.status, j: j }; });
+      }).then(function (x) {
+        if (x.code === 200 && x.j.ok) {
+          form.reset();
+          dire('ok', 'Demande envoyée ! Notre équipe vous répond sous 24 h.');
+          toast('Demande envoyée !', 'Notre équipe vous recontacte sous 24 h avec une proposition.');
+        } else if (x.code === 422 && x.j.erreur === 'champ_email') {
+          dire('err', 'L\'adresse e-mail semble incorrecte : vérifiez-la puis renvoyez votre demande.');
+          form.elements.email.focus();
+        } else if (x.code === 422) {
+          dire('err', 'Un champ obligatoire est vide : complétez le formulaire puis renvoyez votre demande.');
+        } else if (x.code === 429) {
+          dire('err', 'Plusieurs demandes viennent d\'être envoyées. Réessayez dans quelques minutes ou passez par WhatsApp.');
+        } else { parMessagerie(d); }
+      }).catch(function () { parMessagerie(d); }).then(function () { clearTimeout(minuterie); occupe(false); });
+    }
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var lines = ['Bonjour Kiswendsida & Frères, voici ma demande :'];
-      [].forEach.call(form.elements, function (el) {
-        if (!el.name || el.type === 'submit') return;
-        var label = el.getAttribute('data-label') || el.name;
-        var v = el.type === 'checkbox' ? (el.checked ? 'oui' : 'non')
-              : el.tagName === 'SELECT' ? (el.selectedIndex > 0 ? el.options[el.selectedIndex].text : '') : el.value.trim();
-        if (v) lines.push('• ' + label + ' : ' + v);
-      });
-      var num = form.getAttribute('data-wa');
-      window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(lines.join('\n')), '_blank', 'noopener');
-      toast('Demande prête !', 'WhatsApp s\'ouvre avec votre message : il ne reste qu\'à l\'envoyer. Réponse sous 24 h.');
-      form.reset();
+      if (form.getAttribute('aria-busy') === 'true') return;
+      var d = valeurs(form);
+      if (e.submitter && e.submitter.value === 'whatsapp') parWhatsApp(d); else parEmail(d);
     });
   });
 })();

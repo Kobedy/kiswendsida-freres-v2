@@ -381,6 +381,17 @@ a:hover > .kf-more svg, .kf-more:hover svg, .kf-card:hover .kf-more svg { transf
 .kf-wa:focus-visible { outline: 3px solid #fff; outline-offset: 4px; box-shadow: 0 0 0 6px var(--kf-navy); }
 @media (min-width: 768px) { .kf-wa { right: 1.75rem; bottom: 1.75rem; width: 70px; height: 70px; } .kf-wa svg { width: 34px; height: 34px; } }
 
+/* formulaire de devis : deux envois, état, champ piège */
+.kf-envoi__wa { background: #0f7a3d; color: #fff; transition: filter .2s; }
+.kf-envoi__wa:hover { filter: brightness(1.1); }
+.kf-envoi button:focus-visible { outline: 3px solid var(--kf-navy); outline-offset: 3px; }
+.kf-envoi button:disabled { opacity: .6; cursor: progress; }
+.kf-etat { padding: .75rem 1rem; border-radius: .5rem; border: 1px solid #BDCAD3; background: #F2F5F7; color: #1B2C3E; }
+.kf-etat[hidden] { display: none; }
+.kf-etat--ok { background: #e6f6ec; border-color: #8fd0a8; color: #0b5a2b; }
+.kf-etat--err { background: #fdecea; border-color: #eaa9a2; color: #8c1d13; }
+.kf-piege { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
 /* ---------------------------------------------------- 3. animations */
 @keyframes kf-wa-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 @keyframes kf-wa-ring { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.75); opacity: 0; } }
