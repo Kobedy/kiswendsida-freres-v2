@@ -15,7 +15,7 @@ privé `kiswendsida-freres-marque` (`python tools/build_site_corporate.py`),
 puis copiés ici. La maquette v2 d'origine (une seule page) reste dans
 l'historique de ce dépôt et dans le dossier `site-v2/` du dépôt privé.
 
-Les informations manquantes (IF, agrément, CNDP…) sont masquées tant que le client ne les a pas fournies.
+Les informations manquantes (IF, directeur de la publication, CNDP…) sont masquées tant que le client ne les a pas fournies.
 
 ---
 
