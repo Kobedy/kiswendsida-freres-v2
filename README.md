@@ -5,7 +5,7 @@ de ferrailles et de métaux au Maroc. 265, Boulevard Zerktouni, 9ᵉ étage,
 appartement n°92, Anfa — Casablanca.
 
 En ligne : <https://kiswendsida-freres.com/> (Vercel, projet `kiswendsida-freres`,
-redéployé à chaque push sur `main`). Copie GitHub Pages : <https://kobedy.github.io/kiswendsida-freres-v2/>
+redéployé à chaque push sur `main`).
 
 Site statique de 21 pages (accueil, Le Groupe, 2 services, négoce & export,
 matériaux, conformité, blog, contact, pages légales) construit sur la maquette v2.
