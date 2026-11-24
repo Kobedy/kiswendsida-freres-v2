@@ -15,7 +15,7 @@ privé `kiswendsida-freres-marque` (`python tools/build_site_corporate.py`),
 puis copiés ici. La maquette v2 d'origine (une seule page) reste dans
 l'historique de ce dépôt et dans le dossier `site-v2/` du dépôt privé.
 
-Les champs `[__]` (téléphone, ICE, RC…) attendent les informations du client.
+Les champs `[__]` (ICE, RC…) attendent les informations du client.
 
 ---
 
