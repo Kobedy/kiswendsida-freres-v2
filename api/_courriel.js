@@ -50,7 +50,8 @@ export function courriel(v, date = new Date()) {
   const n = numero(v.tel);
   const lien = (href, t) => `<a href="${echap(href)}" style="color:${C.cuivreTxt};text-decoration:underline">${echap(t)}</a>`;
   const reponse = `mailto:${encodeURIComponent(v.email).replace('%40', '@')}?subject=${encodeURIComponent('Votre demande de devis — Kiswendsida & Frères')}`;
-  const salut = `Bonjour ${v.nom}, nous avons bien reçu votre demande de devis. — Kiswendsida & Frères`;
+  const salut = `Bonjour *${v.nom.replace(/[*~`]/g, '').trim()}*,\n\nNous avons bien reçu votre demande de devis :\n`
+    + `• Matière : *${v.matiere}*\n• Tonnage estimé : *${v.tonnage}*\n• Région / Zone : *${v.zone}*\n\n— *Kiswendsida & Frères*`;
   const boutons = bouton(reponse, 'Répondre par e-mail', C.cuivreBtn)
     + (n ? bouton('tel:+' + n, 'Appeler', '#FFFFFF', C.nuit, C.nuit)
       + bouton(`https://wa.me/${n}?text=${encodeURIComponent(salut)}`, 'WhatsApp', C.vert) : '');

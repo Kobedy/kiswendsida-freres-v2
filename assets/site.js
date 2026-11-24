@@ -160,15 +160,30 @@
     setTimeout(function () { d.remove(); }, 6000);
   }
   function valeurs(form) {
-    var champs = {}, lines = [];
+    var champs = {};
     [].forEach.call(form.elements, function (el) {
       if (!el.name || el.type === 'submit') return;
-      var v = el.type === 'checkbox' ? (el.checked ? 'oui' : 'non')
+      champs[el.name] = el.type === 'checkbox' ? (el.checked ? 'oui' : 'non')
             : el.tagName === 'SELECT' ? (el.selectedIndex > 0 ? el.options[el.selectedIndex].text : '') : el.value.trim();
-      champs[el.name] = v;
-      if (v && el.name !== 'site_web') lines.push('• ' + (el.getAttribute('data-label') || el.name) + ' : ' + v);
     });
-    return { champs: champs, texte: 'Bonjour Kiswendsida & Frères, voici ma demande :\n' + lines.join('\n') };
+    return { champs: champs, texte: rediger(champs, false), whatsapp: rediger(champs, true) };
+  }
+  /* même plan que l'e-mail (api/_courriel.js) ; « wa » ajoute la mise en forme WhatsApp : *gras*, > citation */
+  function rediger(v, wa) {
+    var filet = '━━━━━━━━━━━━━━━';
+    function gras(t) { return wa ? '*' + t.replace(/[*~`]/g, '').trim() + '*' : t; }
+    function item(l, t) { return '• ' + l + ' : ' + t; }
+    var demande = v.message.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean)
+      .map(function (l) { return (wa ? '> ' : '') + l; });
+    return [].concat(
+      gras('NOUVELLE DEMANDE DE DEVIS'), gras(v.societe), filet,
+      'Bonjour Kiswendsida & Frères, voici ma demande :', '',
+      gras('L\'ESSENTIEL'), item('Matière', gras(v.matiere)), item('Tonnage estimé', gras(v.tonnage)),
+      item('Région / Zone', gras(v.zone)), '',
+      gras('LA DEMANDE'), demande, '',
+      gras('LE DEMANDEUR'), item('Nom', v.nom), item('Société', v.societe), item('E-mail', v.email),
+      item('Téléphone', v.tel), item('Bordereau (BSD)', v.bsd === 'oui' ? 'demandé' : 'non demandé'), filet,
+      'https://kiswendsida-freres.com/contact/').join('\n');
   }
   [].forEach.call(document.querySelectorAll('form[data-wa]'), function (form) {
     var etat = form.querySelector('.kf-etat');
@@ -183,7 +198,7 @@
       form.setAttribute('aria-busy', oui ? 'true' : 'false');
     }
     function parWhatsApp(d) {
-      window.open('https://wa.me/' + form.getAttribute('data-wa') + '?text=' + encodeURIComponent(d.texte), '_blank', 'noopener');
+      window.open('https://wa.me/' + form.getAttribute('data-wa') + '?text=' + encodeURIComponent(d.whatsapp), '_blank', 'noopener');
       dire('', '');
       toast('Demande prête !', 'WhatsApp s\'ouvre avec votre message : il ne reste qu\'à l\'envoyer. Réponse sous 24 h.');
     }
