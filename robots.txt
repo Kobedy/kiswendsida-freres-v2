@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://kobedy.github.io/kiswendsida-freres-v2/sitemap.xml
+Sitemap: https://kiswendsida-freres.com/sitemap.xml
