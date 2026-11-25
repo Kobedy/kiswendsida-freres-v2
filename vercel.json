@@ -1,10 +1,78 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["cdg1"],
-  "redirects": [
-    { "source": "/fb", "destination": "/enlevement/?utm_source=facebook&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=profil", "permanent": false },
-    { "source": "/ig", "destination": "/enlevement/?utm_source=instagram&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=bio", "permanent": false },
-    { "source": "/go", "destination": "/enlevement/?utm_source=google&utm_medium=fiche&utm_campaign=lancement-2026-12&utm_content=fiche", "permanent": false }
+  "regions": [
+    "cdg1"
   ],
-  "functions": { "api/devis.js": { "maxDuration": 30 } }
+  "redirects": [
+    {
+      "source": "/fb",
+      "destination": "/enlevement/?utm_source=facebook&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=profil",
+      "permanent": false
+    },
+    {
+      "source": "/fb/",
+      "destination": "/enlevement/?utm_source=facebook&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=profil",
+      "permanent": false
+    },
+    {
+      "source": "/ig",
+      "destination": "/enlevement/?utm_source=instagram&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=bio",
+      "permanent": false
+    },
+    {
+      "source": "/ig/",
+      "destination": "/enlevement/?utm_source=instagram&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=bio",
+      "permanent": false
+    },
+    {
+      "source": "/go",
+      "destination": "/enlevement/?utm_source=google&utm_medium=fiche&utm_campaign=lancement-2026-12&utm_content=fiche",
+      "permanent": false
+    },
+    {
+      "source": "/go/",
+      "destination": "/enlevement/?utm_source=google&utm_medium=fiche&utm_campaign=lancement-2026-12&utm_content=fiche",
+      "permanent": false
+    }
+  ],
+  "functions": {
+    "api/devis.js": {
+      "maxDuration": 30
+    }
+  },
+  "cleanUrls": true,
+  "trailingSlash": true,
+  "headers": [
+    {
+      "source": "/assets/img/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800, stale-while-revalidate=2592000"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(app|site)\\.(css|js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
 }
