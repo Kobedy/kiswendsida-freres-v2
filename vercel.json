@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["cdg1"],
+  "redirects": [
+    { "source": "/fb", "destination": "/enlevement/?utm_source=facebook&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=profil", "permanent": false },
+    { "source": "/ig", "destination": "/enlevement/?utm_source=instagram&utm_medium=profil&utm_campaign=lancement-2026-12&utm_content=bio", "permanent": false },
+    { "source": "/go", "destination": "/enlevement/?utm_source=google&utm_medium=fiche&utm_campaign=lancement-2026-12&utm_content=fiche", "permanent": false }
+  ],
   "functions": { "api/devis.js": { "maxDuration": 30 } }
 }

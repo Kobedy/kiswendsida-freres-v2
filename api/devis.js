@@ -13,14 +13,15 @@ const BOITE = 'contact@kiswendsida-freres.com';
 // nom du champ, longueur maximale, obligatoire
 const CHAMPS = [
   ['nom', 120, true],
-  ['societe', 160, true],
-  ['email', 160, true],
+  ['societe', 160, false],
+  ['email', 160, false],
   ['tel', 40, true],
   ['zone', 200, true],
   ['matiere', 80, true],
-  ['tonnage', 80, true],
+  ['tonnage', 80, false],
   ['bsd', 5, false],
-  ['message', 4000, true],
+  ['message', 4000, false],
+  ['source', 40, false],          // provenance (FB-P05, META-ANNONCE-A…), posée par site.js
 ];
 
 // frein simple par adresse IP (par instance) : 5 envois par tranche de 10 minutes
@@ -65,7 +66,8 @@ export default async function handler(req, res) {
     v[cle] = cle === 'message' ? texte(brut) : uneLigne(brut);
     if (requis && !v[cle]) return rep(422, 'champ_' + cle);
   }
-  if (!/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(v.email)) return rep(422, 'champ_email');
+  v.source = v.source.replace(/[^A-Za-z0-9_-]/g, '');
+  if (v.email && !/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(v.email)) return rep(422, 'champ_email');
 
   if (!process.env.SMTP_PASS) return rep(503, 'non_configure');
 
@@ -84,8 +86,8 @@ export default async function handler(req, res) {
     }).sendMail({
       from: { name: 'Site Kiswendsida & Frères', address: compte },
       to: process.env.DEVIS_TO || BOITE,
-      replyTo: { name: v.nom, address: v.email },   // « Répondre » écrit au demandeur
-      subject: `Demande de devis — ${v.societe} — ${v.matiere} (${v.zone})`.slice(0, 180).toWellFormed(),
+      ...(v.email ? { replyTo: { name: v.nom, address: v.email } } : {}),   // « Répondre » écrit au demandeur
+      subject: `Demande de devis — ${v.societe || v.nom} — ${v.matiere} (${v.zone})`.slice(0, 180).toWellFormed(),
       ...courriel(v),
     });
     return rep(200);

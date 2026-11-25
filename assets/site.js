@@ -147,6 +147,56 @@
     });
   });
 
+  /* --- provenance : « FB-P05 », « META-ANNONCE-A », « GO-G1 »… jointe à la demande pour savoir d'où elle vient.
+     Lue dans l'adresse (utm_…), à défaut dans le site d'origine ; gardée le temps de la visite, aucun cookie. */
+  var arrivee = '';
+  var provenance = (function () {
+    var cle = 'kf-provenance', code = '';
+    try {
+      var q = new URLSearchParams(location.search), s = (q.get('utm_source') || '').toLowerCase();
+      var noms = { facebook: 'FB', instagram: 'IG', meta: 'META', google: 'GO', affiche: 'AF' };
+      if (s) code = [noms[s] || s, q.get('utm_content') || q.get('utm_medium') || ''].filter(Boolean).join('-');
+      else if (q.has('gclid')) code = 'GO-ADS';
+      else if (q.has('fbclid')) code = 'META';
+      else if (document.referrer && new URL(document.referrer).hostname !== location.hostname) {
+        var h = new URL(document.referrer).hostname;
+        code = /(^|\.)facebook\.com$/.test(h) ? 'FB' : /(^|\.)instagram\.com$/.test(h) ? 'IG' : /(^|\.)google\./.test(h) ? 'GO' : '';
+      }
+      code = code.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+      if (s && code) arrivee = code;
+      if (code) sessionStorage.setItem(cle, code); else code = (sessionStorage.getItem(cle) || '').replace(/[^A-Z0-9_-]/g, '');
+    } catch (e) {}
+    return code;
+  })();
+  if (provenance) {
+    [].forEach.call(document.querySelectorAll('a[href^="https://wa.me/"]'), function (a) {
+      if (/^https:\/\/wa\.me\/\d+\?text=/.test(a.href)) a.href += encodeURIComponent('\n[' + provenance + ']');
+    });
+  }
+
+  /* --- mesure d'audience sans cookie (Vercel Web Analytics), sur le site publié seulement.
+     compter() note une page virtuelle « /demande/… » : visible dans l'onglet Pages du tableau de bord. */
+  var mesure = false;
+  function compter(chemin) {
+    if (!mesure || !window.va) return;
+    window.va('pageview', { path: '/' + chemin + (provenance ? '/' + provenance.toLowerCase() : '') });
+  }
+  if (/^(www\.)?kiswendsida-freres\.com$/.test(location.hostname)) {
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    var sonde = document.createElement('script');
+    sonde.src = '/_vercel/insights/script.js';
+    sonde.defer = true;
+    /* après le chargement seulement : la page réelle est comptée d'abord */
+    sonde.onload = function () { mesure = true; if (arrivee) compter('arrivee'); };
+    document.head.appendChild(sonde);
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    if (/^tel:/.test(a.getAttribute('href'))) compter('demande/appel');
+    else if (a.classList.contains('kf-option') || a.hasAttribute('data-direct')) compter('demande/whatsapp');
+  });
+
   /* --- popups : demande de devis et choix WhatsApp ------------------ */
   /* sans JavaScript (ou sans <dialog>), les liens gardent leur destination normale */
   var popDevis = document.getElementById('popup-devis');
@@ -169,7 +219,7 @@
     if (!a) return;
     var dans = a.closest('.kf-popup');
     if (dans) { if (a.classList.contains('kf-option')) dans.close(); return; }
-    if ((a.hasAttribute('data-devis') && ouvrir(popDevis)) || (versWa(a) && ouvrir(popWa))) e.preventDefault();
+    if ((a.hasAttribute('data-devis') && ouvrir(popDevis)) || (versWa(a) && !a.hasAttribute('data-direct') && ouvrir(popWa))) e.preventDefault();
   });
   [].forEach.call(document.querySelectorAll('.kf-popup'), function (d) {
     var dehors = false;
@@ -181,7 +231,7 @@
   });
   if (popDevis && popDevis.showModal) {
     [].forEach.call(document.querySelectorAll('a[data-devis], a[href^="https://wa.me/"]'), function (a) {
-      if (!a.closest('.kf-popup') && (a.hasAttribute('data-devis') || versWa(a))) a.setAttribute('aria-haspopup', 'dialog');
+      if (!a.closest('.kf-popup') && (a.hasAttribute('data-devis') || (versWa(a) && !a.hasAttribute('data-direct')))) a.setAttribute('aria-haspopup', 'dialog');
     });
   }
 
@@ -204,6 +254,7 @@
       champs[el.name] = el.type === 'checkbox' ? (el.checked ? 'oui' : 'non')
             : el.tagName === 'SELECT' ? (el.selectedIndex > 0 ? el.options[el.selectedIndex].text : '') : el.value.trim();
     });
+    champs.source = provenance;
     return { champs: champs, texte: rediger(champs, false), whatsapp: rediger(champs, true) };
   }
   /* même plan que l'e-mail (api/_courriel.js) ; « wa » ajoute la mise en forme WhatsApp : *gras*, > citation */
@@ -211,17 +262,18 @@
     var filet = '━━━━━━━━━━━━━━━';
     function gras(t) { return wa ? '*' + t.replace(/[*~`]/g, '').trim() + '*' : t; }
     function item(l, t) { return '• ' + l + ' : ' + t; }
-    var demande = v.message.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean)
+    function si(l, t) { return t ? [item(l, t)] : []; }      /* champ facultatif : absent s'il est vide */
+    var demande = (v.message || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean)
       .map(function (l) { return (wa ? '> ' : '') + l; });
     return [].concat(
-      gras('NOUVELLE DEMANDE DE DEVIS'), gras(v.societe), filet,
+      gras('NOUVELLE DEMANDE DE DEVIS'), gras(v.societe || v.nom), filet,
       'Bonjour Kiswendsida & Frères, voici ma demande :', '',
-      gras('L\'ESSENTIEL'), item('Matière', gras(v.matiere)), item('Tonnage estimé', gras(v.tonnage)),
-      item('Région / Zone', gras(v.zone)), '',
-      gras('LA DEMANDE'), demande, '',
-      gras('LE DEMANDEUR'), item('Nom', v.nom), item('Société', v.societe), item('E-mail', v.email),
-      item('Téléphone', v.tel), item('Bordereau (BSD)', v.bsd === 'oui' ? 'demandé' : 'non demandé'), filet,
-      'https://kiswendsida-freres.com/contact/').join('\n');
+      gras('L\'ESSENTIEL'), item('Matière', gras(v.matiere)), v.tonnage ? item('Tonnage estimé', gras(v.tonnage)) : [],
+      item('Ville / Zone', gras(v.zone)), '',
+      demande.length ? [gras('LA DEMANDE')].concat(demande, '') : [],
+      gras('LE DEMANDEUR'), item('Nom', v.nom), si('Société', v.societe), si('E-mail', v.email),
+      item('Téléphone', v.tel), v.bsd === 'oui' ? item('Bordereau (BSD)', 'demandé') : [], filet,
+      'https://kiswendsida-freres.com/contact/', v.source ? '[' + v.source + ']' : []).join('\n');
   }
   [].forEach.call(document.querySelectorAll('form[data-wa]'), function (form) {
     var etat = form.querySelector('.kf-etat');
@@ -238,6 +290,7 @@
       form.setAttribute('aria-busy', oui ? 'true' : 'false');
     }
     function parWhatsApp(d) {
+      compter('demande/whatsapp');
       window.open('https://wa.me/' + form.getAttribute('data-wa') + '?text=' + encodeURIComponent(d.whatsapp), '_blank', 'noopener');
       if (enPopup) { dire('ok', 'WhatsApp s\'ouvre avec votre demande : il ne reste qu\'à l\'envoyer. Réponse sous 24 h.'); return; }
       dire('', '');
@@ -248,7 +301,7 @@
       var mail = form.getAttribute('data-mail');
       dire('info', 'L\'envoi direct n\'est pas disponible pour le moment : votre messagerie s\'ouvre avec votre demande, il ne reste '
         + 'qu\'à l\'envoyer. Si rien ne s\'ouvre, écrivez à ' + mail + ' ou utilisez le bouton WhatsApp.');
-      window.location.href = 'mailto:' + mail + '?subject=' + encodeURIComponent('Demande de devis — ' + d.champs.societe)
+      window.location.href = 'mailto:' + mail + '?subject=' + encodeURIComponent('Demande de devis — ' + (d.champs.societe || d.champs.nom))
         + '&body=' + encodeURIComponent(d.texte.replace(/\n/g, '\r\n'));
     }
     function parEmail(d) {
@@ -264,6 +317,7 @@
       }).then(function (x) {
         if (x.code === 200 && x.j.ok) {
           form.reset();
+          compter('demande/formulaire');
           dire('ok', 'Demande envoyée ! Notre équipe vous répond sous 24 h.');
           if (!enPopup) toast('Demande envoyée !', 'Notre équipe vous recontacte sous 24 h avec une proposition.');
         } else if (x.code === 422 && x.j.erreur === 'champ_email') {

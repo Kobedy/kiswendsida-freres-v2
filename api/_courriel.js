@@ -28,7 +28,7 @@ function bouton(href, libelle, fond, texte = '#FFFFFF', bord = fond) {
 }
 
 function reperes(v) {
-  return [['Matière', v.matiere], ['Tonnage estimé', v.tonnage], ['Région / Zone', v.zone]].map(([l, t], i) =>
+  return [['Matière', v.matiere], ['Tonnage estimé', v.tonnage || 'À préciser'], ['Ville / Zone', v.zone]].map(([l, t], i) =>
     `<td class="col" width="33%" valign="top" style="padding:0 ${i < 2 ? 10 : 0}px 10px 0">`
     + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate"><tr>`
     + `<td style="background:${C.carte};border:1px solid ${C.trait};border-top:3px solid ${C.cuivre};border-radius:8px;padding:14px 16px">`
@@ -51,11 +51,12 @@ export function courriel(v, date = new Date()) {
   const lien = (href, t) => `<a href="${echap(href)}" style="color:${C.cuivreTxt};text-decoration:underline">${echap(t)}</a>`;
   const reponse = `mailto:${encodeURIComponent(v.email).replace('%40', '@')}?subject=${encodeURIComponent('Votre demande de devis — Kiswendsida & Frères')}`;
   const salut = `Bonjour *${v.nom.replace(/[*~`]/g, '').trim()}*,\n\nNous avons bien reçu votre demande de devis :\n`
-    + `• Matière : *${v.matiere}*\n• Tonnage estimé : *${v.tonnage}*\n• Région / Zone : *${v.zone}*\n\n— *Kiswendsida & Frères*`;
-  const boutons = bouton(reponse, 'Répondre par e-mail', C.cuivreBtn)
+    + `• Matière : *${v.matiere}*\n` + (v.tonnage ? `• Tonnage estimé : *${v.tonnage}*\n` : '') + `• Ville / Zone : *${v.zone}*\n\n— *Kiswendsida & Frères*`;
+  const boutons = (v.email ? bouton(reponse, 'Répondre par e-mail', C.cuivreBtn) : '')
     + (n ? bouton('tel:+' + n, 'Appeler', '#FFFFFF', C.nuit, C.nuit)
       + bouton(`https://wa.me/${n}?text=${encodeURIComponent(salut)}`, 'WhatsApp', C.vert) : '');
-  const resume = `${v.nom} — ${v.matiere}, ${v.tonnage}, ${v.zone}`;
+  const resume = [v.nom + ' — ' + v.matiere, v.tonnage, v.zone].filter(Boolean).join(', ');
+  const qui = v.societe || v.nom;
 
   const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>Nouvelle demande de devis</title>
@@ -72,16 +73,17 @@ export function courriel(v, date = new Date()) {
 <tr><td height="4" bgcolor="${C.cuivre}" style="height:4px;line-height:4px;font-size:0;background:${C.cuivre};background:linear-gradient(90deg,${C.cuivre},#EBA23E)">&nbsp;</td></tr>
 <tr><td class="pad" style="padding:30px 32px 6px">
 <div style="font:700 12px/16px ${CORPS};letter-spacing:.08em;text-transform:uppercase;color:${C.cuivreTxt}">Nouvelle demande de devis</div>
-<h1 class="h1" style="margin:8px 0 4px;font:800 26px/32px ${TITRE};color:${C.encre};word-break:break-word">${echap(v.societe)}</h1>
+<h1 class="h1" style="margin:8px 0 4px;font:800 26px/32px ${TITRE};color:${C.encre};word-break:break-word">${echap(qui)}</h1>
 <div style="font:15px/22px ${CORPS};color:${C.gris}">Envoyée par <strong style="color:${C.encre}">${echap(v.nom)}</strong> depuis le site</div>
 </td></tr>
 <tr><td class="pad" style="padding:18px 32px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${reperes(v)}</tr></table></td></tr>
-<tr><td class="pad" style="padding:16px 32px 0">${titre('La demande')}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:${C.carte};border-left:4px solid ${C.cuivre};border-radius:0 8px 8px 0;padding:16px 18px;font:15px/24px ${CORPS};color:${C.encre};word-break:break-word">${echap(v.message).replace(/\n/g, '<br>')}</td></tr></table></td></tr>
+${v.message ? `<tr><td class="pad" style="padding:16px 32px 0">${titre('La demande')}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:${C.carte};border-left:4px solid ${C.cuivre};border-radius:0 8px 8px 0;padding:16px 18px;font:15px/24px ${CORPS};color:${C.encre};word-break:break-word">${echap(v.message).replace(/\n/g, '<br>')}</td></tr></table></td></tr>` : ''}
 <tr><td class="pad" style="padding:24px 32px 0">${titre('Le demandeur')}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${
-  ligne('Nom', echap(v.nom)) + ligne('Société', echap(v.societe)) + ligne('E-mail', lien(reponse, v.email))
+  ligne('Nom', echap(v.nom)) + (v.societe ? ligne('Société', echap(v.societe)) : '') + (v.email ? ligne('E-mail', lien(reponse, v.email)) : '')
   + ligne('Téléphone', n ? lien('tel:+' + n, v.tel) : echap(v.tel))
+  + (v.source ? ligne('Provenance', echap(v.source)) : '')
   + ligne('Bordereau (BSD)', v.bsd === 'oui' ? `<span style="display:inline-block;background:#FBEADB;color:${C.cuivreTxt};border-radius:999px;padding:2px 12px">Demandé</span>` : 'Non demandé', true)
 }</table></td></tr>
 <tr><td class="pad" style="padding:22px 32px 22px"><table role="presentation" cellpadding="0" cellspacing="0" class="btns"><tr>${boutons}</tr></table></td></tr>
@@ -90,11 +92,12 @@ export function courriel(v, date = new Date()) {
 Message envoyé par le formulaire de <a href="https://kiswendsida-freres.com/contact/" style="color:#F0B878;text-decoration:underline">kiswendsida-freres.com</a></td></tr>
 </table></td></tr></table></body></html>`;
 
-  const text = [`NOUVELLE DEMANDE DE DEVIS — ${v.societe}`, `Reçue le ${recu}`, '',
-    `Matière : ${v.matiere}`, `Tonnage estimé : ${v.tonnage}`, `Région / Zone : ${v.zone}`, '',
-    'LA DEMANDE', v.message, '',
-    'LE DEMANDEUR', `Nom : ${v.nom}`, `Société : ${v.societe}`, `E-mail : ${v.email}`, `Téléphone : ${v.tel}`,
-    `Bordereau (BSD) : ${v.bsd === 'oui' ? 'demandé' : 'non demandé'}`, '',
+  const text = [`NOUVELLE DEMANDE DE DEVIS — ${qui}`, `Reçue le ${recu}`, '',
+    `Matière : ${v.matiere}`, `Tonnage estimé : ${v.tonnage || 'à préciser'}`, `Ville / Zone : ${v.zone}`, '',
+    ...(v.message ? ['LA DEMANDE', v.message, ''] : []),
+    'LE DEMANDEUR', `Nom : ${v.nom}`, ...(v.societe ? [`Société : ${v.societe}`] : []), ...(v.email ? [`E-mail : ${v.email}`] : []),
+    `Téléphone : ${v.tel}`, `Bordereau (BSD) : ${v.bsd === 'oui' ? 'demandé' : 'non demandé'}`,
+    ...(v.source ? [`Provenance : ${v.source}`] : []), '',
     '— Formulaire de kiswendsida-freres.com'].join('\n');
 
   return { html, text, attachments: [{ filename: 'logo.png', content: Buffer.from(LOGO.png, 'base64'), contentType: 'image/png',
